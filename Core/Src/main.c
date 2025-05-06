@@ -89,8 +89,8 @@ static void MX_DMA_Init(void);
 static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
-uint8_t Command_decode(Command* cmd, Stream* stream);
-uint8_t Command_encode(Command* cmd, Stream* stream);
+uint8_t Command_decode(Command* cmd, StreamBuffer* stream);
+uint8_t Command_encode(Command* cmd, StreamBuffer* stream);
 void Command_send(Command* cmd);
 
 void Command_onDecode(Codec* codec, Codec_Frame* frame);
@@ -134,7 +134,7 @@ int main(void)
   MX_DMA_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-  UARTStream_init(&uartStream1, &huart1, &hdma_usart1_rx, &hdma_usart1_tx, streamRxBuff, sizeof(streamRxBuff), streamTxBuff, sizeof(streamTxBuff));
+  UARTStream_init(&uartStream1, &huart1, streamRxBuff, sizeof(streamRxBuff), streamTxBuff, sizeof(streamTxBuff));
   Codec_init(&codec, Packet_baseLayer());
   Codec_onDecode(&codec, Command_onDecode);
   Codec_onDecodeError(&codec, Command_onDecodeError);
@@ -285,7 +285,7 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-uint8_t Command_decode(Command* cmd, Stream* stream) {
+uint8_t Command_decode(Command* cmd, StreamBuffer* stream) {
   Stream_setByteOrder(stream, ByteOrder_BigEndian);
   // read type
   cmd->Type = (Command_Type) Stream_readUInt8(stream);
@@ -308,7 +308,7 @@ uint8_t Command_decode(Command* cmd, Stream* stream) {
   }
   return 1;
 }
-uint8_t Command_encode(Command* cmd, Stream* stream) {
+uint8_t Command_encode(Command* cmd, StreamBuffer* stream) {
   uint8_t i;
   Stream_setByteOrder(stream, ByteOrder_BigEndian);
   // write type
@@ -336,7 +336,7 @@ uint8_t Command_encode(Command* cmd, Stream* stream) {
   return 1;
 }
 void Command_send(Command* cmd) {
-  Stream tempStream;
+  StreamBuffer tempStream;
   uint8_t temp[sizeof(Command)];
   Packet encodePacket;
   
@@ -346,10 +346,10 @@ void Command_send(Command* cmd) {
   Codec_encodeFrame(&codec, &encodePacket, &uartStream1.Output, Codec_EncodeMode_FlushLayer);
 }
 void Command_onDecode(Codec* codec, Codec_Frame* frame) {
-  Stream stream;
+  StreamBuffer stream;
   Packet* packet = (Packet*) frame;
   Command cmd;
-  Stream_fromBuff(&stream, packet->Data, packet->Len);
+  Stream_fromBuff(&stream, packet->Data, packet->Size, packet->Len);
   
   if (Command_decode(&cmd, &stream)) {
     switch (cmd.Type) {
